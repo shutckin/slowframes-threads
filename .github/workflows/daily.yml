@@ -1,0 +1,47 @@
+# Один пост в день в личный Threads (@shoot.kin) из очереди queue/.
+# 11:00 UTC = 19:00 по Бали, 14:00 по Москве. Кадры Threads забирает по
+# raw-ссылкам этого репозитория, поэтому он публичный.
+name: threads-daily
+on:
+  schedule:
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: 'Холостой прогон: показать, что ушло бы, ничего не отправлять'
+        type: boolean
+        default: true
+      id:
+        description: 'Конкретный пост (папка в queue/) вне очереди'
+        type: string
+        default: ''
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish next post
+        env:
+          THREADS_RU_ACCESS_TOKEN: ${{ secrets.THREADS_RU_ACCESS_TOKEN }}
+          POST_ID: ${{ inputs.id }}
+          DRY: ${{ inputs.dry }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          args=""
+          [ -n "$POST_ID" ] && args="--id $POST_ID"
+          if [ "$EVENT" = "schedule" ] || [ "$DRY" = "false" ]; then
+            python3 publish.py $args
+          else
+            python3 publish.py --dry $args
+          fi
+      - name: Save state
+        run: |
+          git config user.name "threads-bot"
+          git config user.email "bot@shootkin.com"
+          git add state/published.json
+          if ! git diff --cached --quiet; then
+            git commit -m "state: опубликован пост"
+            git push
+          fi
