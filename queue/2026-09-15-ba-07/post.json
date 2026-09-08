@@ -1,0 +1,16 @@
+{
+ "hook": "Первый кадр или последний? Между ними два других.",
+ "reply": "Снято в Амед:\n1 — Panasonic S1R II\n2 — DJI Mavic 4 Pro\n3 — Panasonic S1R II\n4 — DJI Mavic 4 Pro\n\nВсе кадры — shootkin.com/slowframes",
+ "images": [
+  "1.jpg",
+  "2.jpg",
+  "3.jpg",
+  "4.jpg"
+ ],
+ "codes": [
+  "BA-186",
+  "BA-185",
+  "BA-187",
+  "BA-184"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "hook": "Если можно оставить только одну из пяти, какую?",
+ "reply": "Снято в Амед:\n1 — DJI Mavic 4 Pro\n2 — DJI Mavic 4 Pro\n3 — Panasonic S1R II\n4 — Fujifilm X100VI\n5 — Panasonic S1R II\n\nВсе кадры — shootkin.com/slowframes",
+ "images": [
+  "1.jpg",
+  "2.jpg",
+  "3.jpg",
+  "4.jpg",
+  "5.jpg"
+ ],
+ "codes": [
+  "BA-148",
+  "BA-151",
+  "BA-138",
+  "BA-144",
+  "BA-137"
+ ]
+}

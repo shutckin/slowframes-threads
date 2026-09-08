@@ -1,0 +1,16 @@
+{
+ "hook": "Какой из этих четырёх вы бы отправили другу без подписи?",
+ "reply": "Снято в Белая Холуница:\n1 — Panasonic S9\n2 — Panasonic S9\n3 — iPhone 17 Pro\n4 — Panasonic S9\n\nВсе кадры — shootkin.com/slowframes",
+ "images": [
+  "1.jpg",
+  "2.jpg",
+  "3.jpg",
+  "4.jpg"
+ ],
+ "codes": [
+  "RU-646",
+  "RU-647",
+  "RU-632",
+  "RU-649"
+ ]
+}

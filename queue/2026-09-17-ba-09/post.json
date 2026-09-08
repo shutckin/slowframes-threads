@@ -1,0 +1,16 @@
+{
+ "hook": "Какой из этих кадров вы бы повесили на стену?",
+ "reply": "Снято: Амед, DJI Mavic 4 Pro.\n\nВсе кадры — shootkin.com/slowframes",
+ "images": [
+  "1.jpg",
+  "2.jpg",
+  "3.jpg",
+  "4.jpg"
+ ],
+ "codes": [
+  "BA-225",
+  "BA-226",
+  "BA-230",
+  "BA-229"
+ ]
+}

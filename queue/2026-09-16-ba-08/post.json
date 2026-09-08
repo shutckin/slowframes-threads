@@ -1,0 +1,18 @@
+{
+ "hook": "Какой остановил вас дольше: до подписи или после?",
+ "reply": "Снято в Бали:\n1 — Fujifilm X100VI\n2 — Fujifilm X100VI\n3 — Fujifilm X100VI\n4 — DJI Mavic 4 Pro\n5 — DJI Mavic 4 Pro\n\nВсе кадры — shootkin.com/slowframes",
+ "images": [
+  "1.jpg",
+  "2.jpg",
+  "3.jpg",
+  "4.jpg",
+  "5.jpg"
+ ],
+ "codes": [
+  "BA-221",
+  "BA-220",
+  "BA-222",
+  "BA-212",
+  "BA-210"
+ ]
+}
