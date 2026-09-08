@@ -53,7 +53,8 @@ def pick():
     done = json.loads(STATE.read_text()) if STATE.exists() else {}
     if '--id' in sys.argv:
         return sys.argv[sys.argv.index('--id') + 1], done
-    for d in sorted(p.name for p in (HERE/'queue').iterdir() if (p/'post.json').exists()):
+    q = HERE/'queue'
+    for d in sorted(p.name for p in (q.iterdir() if q.exists() else []) if (p/'post.json').exists()):
         if d not in done: return d, done
     return None, done
 
