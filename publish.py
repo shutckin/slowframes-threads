@@ -8,14 +8,21 @@ GitHub. Локальная машина для публикации не нуж�
 
 Очередь: queue/<id>/post.json + 1.jpg … 5.jpg. post.json:
   {"hook": "...", "reply": "...", "images": ["1.jpg", ...]}
-Порядок — по имени папки (дата-префикс). state/published.json помнит,
+Порядок — по имени папки (числовой префикс). state/published.json помнит,
 что уже вышло; повтор невозможен: отметка пишется сразу после публикации.
+
+Ритм — раз в MIN_INTERVAL_DAYS дней (по умолчанию три). Расписание в
+GitHub Actions ежедневное, а интервал держит сам скрипт: cron вида
+«*/3» на стыке месяцев даёт то три дня, то один, и очередь съезжает.
+Здесь же считается разница с последней публикацией, так что пропущенный
+запуск ничего не ломает.
 
 Пост = карусель (4–5 кадров) + первый ответ в ветке с подписью, где снято
 и на что. Ответ — отдельный пост с reply_to_id.
 
-  python3 publish.py            # опубликовать следующий пост
+  python3 publish.py            # опубликовать следующий пост, если срок подошёл
   python3 publish.py --dry      # показать, что ушло бы, ничего не отправлять
+  python3 publish.py --force    # опубликовать сейчас, не дожидаясь срока
   python3 publish.py --id <id>  # конкретный пост вне очереди
 """
 import json, os, sys, time, pathlib, urllib.request, urllib.parse, urllib.error
@@ -26,6 +33,8 @@ RAW = os.environ.get('RAW_BASE', 'https://raw.githubusercontent.com/shutckin/slo
 TOKEN = os.environ.get('THREADS_RU_ACCESS_TOKEN', '')
 STATE = HERE/'state/published.json'
 DRY = '--dry' in sys.argv
+FORCE = '--force' in sys.argv or '--id' in sys.argv
+MIN_DAYS = float(os.environ.get('MIN_INTERVAL_DAYS', '3'))
 
 def call(path, params, method='GET'):
     params = {**params, 'access_token': TOKEN}
@@ -58,9 +67,22 @@ def pick():
         if d not in done: return d, done
     return None, done
 
+def due(done):
+    """Пора ли публиковать: с последней публикации прошло MIN_DAYS дней."""
+    times = [v.get('at') for v in done.values() if v.get('at')]
+    if not times: return True, 0.0
+    last = max(times)
+    gap = (time.time() - time.mktime(time.strptime(last, '%Y-%m-%dT%H:%M:%SZ'))) / 86400
+    return gap >= MIN_DAYS, gap
+
 def main():
     pid, done = pick()
     if not pid: print('очередь пуста'); return
+    ready, gap = due(done)
+    if not ready and not FORCE:
+        print(f'рано: с прошлой публикации {gap:.1f} дн., интервал {MIN_DAYS:g} дн. '
+              f'Следующий пост {pid} выйдет через {MIN_DAYS - gap:.1f} дн.')
+        return
     post = json.loads((HERE/'queue'/pid/'post.json').read_text())
     urls = [f'{RAW}/queue/{pid}/{name}' for name in post['images']]
     print(f'пост {pid}: {len(urls)} кадров\n{post["hook"]}\n---\n{post["reply"]}')

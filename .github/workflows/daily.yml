@@ -1,5 +1,7 @@
-# Один пост в день в личный Threads (@shoot.kin) из очереди queue/.
-# 11:00 UTC = 19:00 по Бали, 14:00 по Москве. Кадры Threads забирает по
+# Пост в личный Threads (@shoot.kin) из очереди queue/ — раз в три дня.
+# 11:00 UTC = 19:00 по Бали, 14:00 по Москве. Cron ежедневный, а интервал
+# держит сам publish.py по времени последней публикации: «*/3» в cron на
+# стыке месяцев даёт то три дня, то один. Кадры Threads забирает по
 # raw-ссылкам этого репозитория, поэтому он публичный.
 name: threads-daily
 on:
@@ -11,6 +13,10 @@ on:
         description: 'Холостой прогон: показать, что ушло бы, ничего не отправлять'
         type: boolean
         default: true
+      force:
+        description: 'Опубликовать сейчас, не дожидаясь трёх дней'
+        type: boolean
+        default: false
       id:
         description: 'Конкретный пост (папка в queue/) вне очереди'
         type: string
@@ -25,12 +31,15 @@ jobs:
       - name: Publish next post
         env:
           THREADS_RU_ACCESS_TOKEN: ${{ secrets.THREADS_RU_ACCESS_TOKEN }}
+          MIN_INTERVAL_DAYS: '3'
           POST_ID: ${{ inputs.id }}
           DRY: ${{ inputs.dry }}
+          FORCE: ${{ inputs.force }}
           EVENT: ${{ github.event_name }}
         run: |
           args=""
           [ -n "$POST_ID" ] && args="--id $POST_ID"
+          [ "$FORCE" = "true" ] && args="$args --force"
           if [ "$EVENT" = "schedule" ] || [ "$DRY" = "false" ]; then
             python3 publish.py $args
           else
