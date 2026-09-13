@@ -17,7 +17,7 @@
 ## Очередь LATAM Atlas (с 13.09.2026)
 
 - `queue-atlas/<номер>-<id>/post.json` — `{"text": "...", "reply": "..."}`: текстовый пост-вопрос,
-  ссылка на latamatlas.com первым ответом в ветке. Все ссылки с `?from=threads` — по ним
+  ссылка на latamatlas.com первым ответом в ветке. Все ссылки с `latamatlas.com/th/…` (короткие ссылки сайта сами дописывают метку `?from=threads`) — по ним
   сайт считает переходы (цель проверки гипотезы — 100 за 30 дней, см. latam-atlas/docs/FOUNDATION.md).
 - `state/published-atlas.json` — что вышло из атласа.
 - Тот же ритм — раз в три дня, но никогда в один день со slowframes.
