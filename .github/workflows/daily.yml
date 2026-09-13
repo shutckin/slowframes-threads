@@ -1,14 +1,23 @@
-# Пост в личный Threads (@shoot.kin) из очереди queue/ — раз в три дня.
+# Посты в личный Threads (@shoot.kin) — две очереди, раз в три дня каждая.
 # 11:00 UTC = 19:00 по Бали, 14:00 по Москве. Cron ежедневный, а интервал
 # держит сам publish.py по времени последней публикации: «*/3» в cron на
 # стыке месяцев даёт то три дня, то один. Кадры Threads забирает по
 # raw-ссылкам этого репозитория, поэтому он публичный.
+#
+# Порядок шагов важен: slowframes первым. Если он опубликовал сегодня,
+# атлас это видит и ждёт завтра — посты чередуются, а не выходят парой.
+# Падение одной очереди не останавливает другую (if: always()).
 name: threads-daily
 on:
   schedule:
     - cron: '0 11 * * *'
   workflow_dispatch:
     inputs:
+      queue:
+        description: 'Какая очередь'
+        type: choice
+        options: [slowframes, atlas]
+        default: slowframes
       dry:
         description: 'Холостой прогон: показать, что ушло бы, ничего не отправлять'
         type: boolean
@@ -18,7 +27,7 @@ on:
         type: boolean
         default: false
       id:
-        description: 'Конкретный пост (папка в queue/) вне очереди'
+        description: 'Конкретный пост (папка в очереди) вне очереди и паузы'
         type: string
         default: ''
 permissions:
@@ -26,19 +35,31 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      THREADS_RU_ACCESS_TOKEN: ${{ secrets.THREADS_RU_ACCESS_TOKEN }}
+      MIN_INTERVAL_DAYS: '3'
+      POST_ID: ${{ inputs.id }}
+      DRY: ${{ inputs.dry }}
+      FORCE: ${{ inputs.force }}
+      EVENT: ${{ github.event_name }}
     steps:
       - uses: actions/checkout@v4
-      - name: Publish next post
-        env:
-          THREADS_RU_ACCESS_TOKEN: ${{ secrets.THREADS_RU_ACCESS_TOKEN }}
-          MIN_INTERVAL_DAYS: '3'
-          POST_ID: ${{ inputs.id }}
-          DRY: ${{ inputs.dry }}
-          FORCE: ${{ inputs.force }}
-          EVENT: ${{ github.event_name }}
+      - name: Publish slowframes
+        if: github.event_name == 'schedule' || inputs.queue == 'slowframes'
         run: |
-          args=""
-          [ -n "$POST_ID" ] && args="--id $POST_ID"
+          args="--queue slowframes"
+          [ -n "$POST_ID" ] && args="$args --id $POST_ID"
+          [ "$FORCE" = "true" ] && args="$args --force"
+          if [ "$EVENT" = "schedule" ] || [ "$DRY" = "false" ]; then
+            python3 publish.py $args
+          else
+            python3 publish.py --dry $args
+          fi
+      - name: Publish atlas
+        if: always() && (github.event_name == 'schedule' || inputs.queue == 'atlas')
+        run: |
+          args="--queue atlas"
+          [ -n "$POST_ID" ] && args="$args --id $POST_ID"
           [ "$FORCE" = "true" ] && args="$args --force"
           if [ "$EVENT" = "schedule" ] || [ "$DRY" = "false" ]; then
             python3 publish.py $args
@@ -46,10 +67,11 @@ jobs:
             python3 publish.py --dry $args
           fi
       - name: Save state
+        if: always()
         run: |
           git config user.name "threads-bot"
           git config user.email "bot@shootkin.com"
-          git add state/published.json
+          git add state/
           if ! git diff --cached --quiet; then
             git commit -m "state: опубликован пост"
             git push
