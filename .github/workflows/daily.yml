@@ -68,11 +68,29 @@ jobs:
           fi
       - name: Save state
         if: always()
+        # Пуш пробуем несколько раз: 23.09.2026 GitHub на секунду ответил
+        # 500-й ошибкой ровно на этом шаге. Отметка «пост вышел» не
+        # записалась, и на следующий день бот счёл пост неопубликованным
+        # и отправил его в Threads повторно. Ретраи с паузой закрывают
+        # именно разовые сбои GitHub; если сервер лежит по-настоящему
+        # дольше минуты, шаг просто упадёт, как раньше.
         run: |
           git config user.name "threads-bot"
           git config user.email "bot@shootkin.com"
           git add state/
-          if ! git diff --cached --quiet; then
-            git commit -m "state: опубликован пост"
-            git push
+          if git diff --cached --quiet; then
+            exit 0
           fi
+          git commit -m "state: опубликован пост"
+          for attempt in 1 2 3 4 5; do
+            if git push; then
+              echo "пуш прошёл с попытки $attempt"
+              exit 0
+            fi
+            echo "попытка $attempt не удалась, жду и пробую снова"
+            sleep $((attempt * 5))
+            git fetch origin main
+            git rebase origin/main
+          done
+          echo "::error::пуш состояния не прошёл после пяти попыток — проверить руками, не остался ли пост неотмеченным"
+          exit 1
