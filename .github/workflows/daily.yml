@@ -1,4 +1,5 @@
-# Посты в личный Threads (@shoot.kin) — две очереди, раз в три дня каждая.
+# Посты в личный Threads (@shoot.kin) — две очереди: slowframes раз в три дня,
+# атлас каждый день, кроме дней slowframes.
 # 11:00 UTC = 19:00 по Бали, 14:00 по Москве. Cron ежедневный, а интервал
 # держит сам publish.py по времени последней публикации: «*/3» в cron на
 # стыке месяцев даёт то три дня, то один. Кадры Threads забирает по
@@ -37,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       THREADS_RU_ACCESS_TOKEN: ${{ secrets.THREADS_RU_ACCESS_TOKEN }}
-      MIN_INTERVAL_DAYS: '3'
+      # Интервал у каждой очереди свой — в publish.py (QUEUES[...]['days'])
       POST_ID: ${{ inputs.id }}
       DRY: ${{ inputs.dry }}
       FORCE: ${{ inputs.force }}

@@ -15,7 +15,10 @@ GitHub. Локальная машина для публикации не нуж�
 в state/, он помнит, что уже вышло; повтор невозможен: отметка пишется
 сразу после публикации.
 
-Ритм — раз в MIN_INTERVAL_DAYS дней (по умолчанию три). Расписание в
+Ритм у каждой очереди свой (days в QUEUES): slowframes — раз в три дня,
+атлас — каждый день, кроме дней slowframes (с 01.10.2026, просьба Артема
+«надо каждый день что-то выкладывать»): в ленте что-то выходит ежедневно,
+но не парой. MIN_INTERVAL_DAYS в окружении перебивает оба. Расписание в
 GitHub Actions ежедневное, а интервал держит сам скрипт: cron вида
 «*/3» на стыке месяцев даёт то три дня, то один, и очередь съезжает.
 Здесь же считается разница с последней публикацией, так что пропущенный
@@ -48,14 +51,13 @@ RAW = os.environ.get('RAW_BASE', 'https://raw.githubusercontent.com/shutckin/slo
 TOKEN = os.environ.get('THREADS_RU_ACCESS_TOKEN', '')
 DRY = '--dry' in sys.argv
 FORCE = '--force' in sys.argv or '--id' in sys.argv
-MIN_DAYS = float(os.environ.get('MIN_INTERVAL_DAYS', '3'))
 SLACK_DAYS = 0.25
 MAX_CHARS = 500
 
 QUEUES = {
-    'slowframes': {'dir': 'queue', 'state': 'state/published.json'},
+    'slowframes': {'dir': 'queue', 'state': 'state/published.json', 'days': 3},
     # avoid — не публиковать, если другая очередь выходила меньше AVOID_DAYS назад
-    'atlas': {'dir': 'queue-atlas', 'state': 'state/published-atlas.json', 'avoid': 'slowframes'},
+    'atlas': {'dir': 'queue-atlas', 'state': 'state/published-atlas.json', 'avoid': 'slowframes', 'days': 1},
 }
 AVOID_DAYS = 0.5
 
@@ -67,6 +69,7 @@ if QUEUE not in QUEUES: raise SystemExit(f'неизвестная очередь
 CFG = QUEUES[QUEUE]
 QDIR = HERE/CFG['dir']
 STATE = HERE/CFG['state']
+MIN_DAYS = float(os.environ.get('MIN_INTERVAL_DAYS') or CFG['days'])
 
 def call(path, params, method='GET'):
     params = {**params, 'access_token': TOKEN}
