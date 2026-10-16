@@ -9,8 +9,16 @@ GitHub. Локальная машина для публикации не нуж�
 Очередей две, аккаунт один:
   slowframes — queue/<id>/post.json + 1.jpg … 5.jpg, карусель кадров;
                {"hook": "...", "reply": "...", "images": ["1.jpg", ...]}
-  atlas      — queue-atlas/<id>/post.json, текстовые посты LATAM Atlas;
-               {"text": "...", "reply": "..."}; ссылка на сайт — в ответе.
+  atlas      — queue-atlas/<id>/post.json, посты LATAM Atlas; ссылка на сайт —
+               в первом ответе ("reply"). Два вида:
+               {"text": "...", "reply": "..."} — просто текст;
+               {"text": "...", "reply": "...", "images": ["card.png"]} — текст
+               с картинкой (карточка сравнения с сайта). Одна картинка уходит
+               одиночным постом IMAGE, две и больше — каруселью, как slowframes.
+Подпись поста — "text", а если его нет — "hook" (так устроены посты
+slowframes). Картинки — JPEG или PNG (официально поддерживаемые Threads
+форматы), до 8 МБ каждая, в карусели от 2 до 20; файлы должны лежать в
+папке поста. Это проверяется до отправки, в том числе холостым прогоном.
 Порядок — по имени папки (числовой префикс). У каждой очереди свой файл
 в state/, он помнит, что уже вышло; повтор невозможен: отметка пишется
 сразу после публикации.
@@ -42,6 +50,10 @@ queue-atlas/PAUSED.
   python3 publish.py --dry            # показать, что ушло бы, ничего не отправлять
   python3 publish.py --force          # опубликовать сейчас, не дожидаясь срока
   python3 publish.py --id <id>        # конкретный пост вне очереди (и вне паузы)
+  python3 publish.py --queue atlas --dry --dir queue-atlas-draft --id <id>
+                                      # проверить черновик из другой папки
+                                      # (--dir работает только с --dry)
+Холостому прогону токен не нужен: он ничего не отправляет и токен не читает.
 """
 import calendar, json, os, sys, time, pathlib, urllib.request, urllib.parse, urllib.error
 
@@ -67,7 +79,11 @@ def arg(name, default=None):
 QUEUE = arg('--queue', 'slowframes')
 if QUEUE not in QUEUES: raise SystemExit(f'неизвестная очередь {QUEUE}: {", ".join(QUEUES)}')
 CFG = QUEUES[QUEUE]
-QDIR = HERE/CFG['dir']
+# --dir — только для проверки черновиков: публиковать из чужой папки нельзя,
+# иначе пост выйдет мимо очереди и его ссылки на картинки не совпадут с репозиторием
+QDIR_NAME = arg('--dir', CFG['dir'])
+if QDIR_NAME != CFG['dir'] and not DRY: raise SystemExit('--dir работает только вместе с --dry')
+QDIR = HERE/QDIR_NAME
 STATE = HERE/CFG['state']
 MIN_DAYS = float(os.environ.get('MIN_INTERVAL_DAYS') or CFG['days'])
 
@@ -127,6 +143,24 @@ def check_length(post):
         n = len(post.get(field) or '')
         if n > MAX_CHARS: raise SystemExit(f'поле {field}: {n} знаков, лимит Threads {MAX_CHARS}')
 
+IMAGE_TYPES = ('.jpg', '.jpeg', '.png')  # официально поддерживаемые Threads форматы
+MAX_IMAGE_BYTES = 8 * 1024 * 1024        # лимит Threads на картинку
+MAX_CAROUSEL = 20                        # в карусели от 2 до 20 кадров
+
+def check_images(folder, images):
+    """Картинки есть в папке поста, формат и размер подходят Threads."""
+    if not isinstance(images, list) or not all(isinstance(n, str) and n for n in images):
+        raise SystemExit('поле images: нужен список имён файлов, например ["card.png"]')
+    if len(images) > MAX_CAROUSEL: raise SystemExit(f'картинок {len(images)}, в карусели Threads не больше {MAX_CAROUSEL}')
+    for name in images:
+        f = folder/name
+        if '/' in name or not f.is_file(): raise SystemExit(f'нет файла картинки {name} в папке {folder.name}')
+        if f.suffix.lower() not in IMAGE_TYPES: raise SystemExit(f'{name}: Threads принимает только JPEG и PNG')
+        if f.stat().st_size > MAX_IMAGE_BYTES: raise SystemExit(f'{name}: {f.stat().st_size // 1024} КБ, лимит Threads 8 МБ')
+
+def media_kind(images):
+    return 'CAROUSEL' if len(images) > 1 else 'IMAGE' if images else 'TEXT'
+
 def publish_container(me, params):
     cid = call(f'/{me}/threads', params, 'POST')['id']
     wait_ready(cid)
@@ -141,23 +175,32 @@ def main():
     if not ready and not FORCE:
         print(f'{QUEUE}: {why}; следующий пост — {pid}')
         return
-    post = json.loads((QDIR/pid/'post.json').read_text())
+    folder = QDIR/pid
+    if not (folder/'post.json').exists(): raise SystemExit(f'нет поста {pid} в папке {QDIR_NAME}')
+    post = json.loads((folder/'post.json').read_text())
     check_length(post)
     images = post.get('images') or []
-    urls = [f'{RAW}/{CFG["dir"]}/{pid}/{name}' for name in images]
-    body = post.get('hook') if images else post.get('text')
-    print(f'{QUEUE} / пост {pid}: {len(urls)} кадров\n{body}\n---\n{post.get("reply", "")}')
+    check_images(folder, images)
+    urls = [f'{RAW}/{QDIR_NAME}/{pid}/{name}' for name in images]
+    # Подпись: у атласа "text", у slowframes "hook"
+    body = post.get('text') or post.get('hook') or ''
+    if not body.strip(): raise SystemExit(f'пост {pid}: пустой текст (нужно поле text или hook)')
+    kind = media_kind(images)
+    print(f'{QUEUE} / пост {pid}: {kind}, картинок {len(urls)}\n{body}\n---\n{post.get("reply", "")}')
     if DRY:
         for u in urls: print(' ', u)
+        print(f'знаков: текст {len(body)}, ответ {len(post.get("reply") or "")} (лимит {MAX_CHARS})')
         return
     if not TOKEN: raise SystemExit('THREADS_RU_ACCESS_TOKEN не задан')
     me = call('/me', {'fields': 'id'})['id']
-    if images:
+    if kind == 'CAROUSEL':
         children = []
         for u in urls:
             c = call(f'/{me}/threads', {'media_type': 'IMAGE', 'image_url': u, 'is_carousel_item': 'true'}, 'POST')['id']
             wait_ready(c); children.append(c)
         pub = publish_container(me, {'media_type': 'CAROUSEL', 'children': ','.join(children), 'text': body})
+    elif kind == 'IMAGE':
+        pub = publish_container(me, {'media_type': 'IMAGE', 'image_url': urls[0], 'text': body})
     else:
         pub = publish_container(me, {'media_type': 'TEXT', 'text': body})
     link = call(f'/{pub}', {'fields': 'permalink'}).get('permalink', '')
