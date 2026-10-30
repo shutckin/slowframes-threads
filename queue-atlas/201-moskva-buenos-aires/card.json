@@ -1,0 +1,15 @@
+{
+ "pair": {
+  "from": "moscow",
+  "to": "buenos-aires"
+ },
+ "lang": "ru",
+ "page": "http://localhost:3470/compare#a=moscow&b=buenos-aires",
+ "verdict": "Жизнь вне центра в Буэнос-Айресе обойдётся примерно как в Москве",
+ "shareText": "Жизнь вне центра в Буэнос-Айресе обойдётся примерно как в Москве. В месяц: Москва $875–1 238, Буэнос-Айрес $799–1 134.",
+ "shareUrl": "http://localhost:3400/cost-of-living/moscow/buenos-aires?from=share",
+ "card": {
+  "from": "og",
+  "url": "http://localhost:3470/og/cost/moscow/buenos-aires/ru"
+ }
+}

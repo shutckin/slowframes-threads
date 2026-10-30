@@ -1,0 +1,15 @@
+{
+ "pair": {
+  "from": "saint-petersburg",
+  "to": "medellin"
+ },
+ "lang": "ru",
+ "page": "http://localhost:3470/compare#a=saint-petersburg&b=medellin",
+ "verdict": "В Медельине жизнь вне центра немного дороже, диапазоны пересекаются",
+ "shareText": "В Медельине жизнь вне центра немного дороже, диапазоны пересекаются. В месяц: Санкт-Петербург $629–837, Медельин $835–1 298.",
+ "shareUrl": "http://localhost:3400/cost-of-living/saint-petersburg/medellin?from=share",
+ "card": {
+  "from": "og",
+  "url": "http://localhost:3470/og/cost/saint-petersburg/medellin/ru"
+ }
+}

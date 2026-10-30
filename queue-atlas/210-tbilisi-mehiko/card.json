@@ -1,0 +1,15 @@
+{
+ "pair": {
+  "from": "tbilisi",
+  "to": "mexico-city"
+ },
+ "lang": "ru",
+ "page": "http://localhost:3470/compare#a=tbilisi&b=mexico-city",
+ "verdict": "Жизнь вне центра в Мехико обойдётся примерно как в Тбилиси",
+ "shareText": "Жизнь вне центра в Мехико обойдётся примерно как в Тбилиси. В месяц: Тбилиси $729–1 037, Мехико $696–976.",
+ "shareUrl": "http://localhost:3400/cost-of-living/tbilisi/mexico-city?from=share",
+ "card": {
+  "from": "og",
+  "url": "http://localhost:3470/og/cost/tbilisi/mexico-city/ru"
+ }
+}

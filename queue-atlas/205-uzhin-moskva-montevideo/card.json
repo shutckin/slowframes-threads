@@ -1,0 +1,15 @@
+{
+ "pair": {
+  "from": "moscow",
+  "to": "montevideo"
+ },
+ "lang": "ru",
+ "page": "http://localhost:3470/compare#a=moscow&b=montevideo",
+ "verdict": "Жизнь вне центра в Монтевидео обойдётся примерно как в Москве",
+ "shareText": "Жизнь вне центра в Монтевидео обойдётся примерно как в Москве. В месяц: Москва $875–1 238, Монтевидео $814–1 131.",
+ "shareUrl": "http://localhost:3400/cost-of-living/moscow/montevideo?from=share",
+ "card": {
+  "from": "og",
+  "url": "http://localhost:3470/og/cost/moscow/montevideo/ru"
+ }
+}

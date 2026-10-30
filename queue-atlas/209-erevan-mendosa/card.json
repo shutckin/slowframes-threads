@@ -1,0 +1,15 @@
+{
+ "pair": {
+  "from": "yerevan",
+  "to": "mendoza"
+ },
+ "lang": "ru",
+ "page": "http://localhost:3470/compare#a=yerevan&b=mendoza",
+ "verdict": "В Мендосе жизнь вне центра дешевле на 24%",
+ "shareText": "В Мендосе жизнь вне центра дешевле на 24%. В месяц: Ереван $868–1 204, Мендоса $719–856.",
+ "shareUrl": "http://localhost:3400/cost-of-living/yerevan/mendoza?from=share",
+ "card": {
+  "from": "og",
+  "url": "http://localhost:3470/og/cost/yerevan/mendoza/ru"
+ }
+}

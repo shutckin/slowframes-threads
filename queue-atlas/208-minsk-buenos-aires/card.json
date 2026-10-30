@@ -1,0 +1,15 @@
+{
+ "pair": {
+  "from": "minsk",
+  "to": "buenos-aires"
+ },
+ "lang": "ru",
+ "page": "http://localhost:3470/compare#a=minsk&b=buenos-aires",
+ "verdict": "В Буэнос-Айресе жизнь вне центра дороже: на 36%",
+ "shareText": "В Буэнос-Айресе жизнь вне центра дороже: на 36%. В месяц: Минск $636–780, Буэнос-Айрес $799–1 134.",
+ "shareUrl": "http://localhost:3400/cost-of-living/minsk/buenos-aires?from=share",
+ "card": {
+  "from": "og",
+  "url": "http://localhost:3470/og/cost/minsk/buenos-aires/ru"
+ }
+}

@@ -1,0 +1,15 @@
+{
+ "pair": {
+  "from": "warsaw",
+  "to": "lima"
+ },
+ "lang": "ru",
+ "page": "http://localhost:3470/compare#a=warsaw&b=lima",
+ "verdict": "В Лиме жизнь вне центра дешевле на 23%",
+ "shareText": "В Лиме жизнь вне центра дешевле на 23%. В месяц: Варшава $1 129–1 350, Лима $832–1 073.",
+ "shareUrl": "http://localhost:3400/cost-of-living/warsaw/lima?from=share",
+ "card": {
+  "from": "og",
+  "url": "http://localhost:3470/og/cost/warsaw/lima/ru"
+ }
+}

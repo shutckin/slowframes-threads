@@ -1,0 +1,15 @@
+{
+ "pair": {
+  "from": "kyiv",
+  "to": "santiago"
+ },
+ "lang": "ru",
+ "page": "http://localhost:3470/compare#a=kyiv&b=santiago",
+ "verdict": "В Сантьяго жизнь вне центра дороже: на 60%",
+ "shareText": "В Сантьяго жизнь вне центра дороже: на 60%. В месяц: Киев $386–528, Сантьяго $663–800.",
+ "shareUrl": "http://localhost:3400/cost-of-living/kyiv/santiago?from=share",
+ "card": {
+  "from": "og",
+  "url": "http://localhost:3470/og/cost/kyiv/santiago/ru"
+ }
+}
