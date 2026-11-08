@@ -70,6 +70,9 @@ QUEUES = {
     'slowframes': {'dir': 'queue', 'state': 'state/published.json', 'days': 3},
     # avoid — не публиковать, если другая очередь выходила меньше AVOID_DAYS назад
     'atlas': {'dir': 'queue-atlas', 'state': 'state/published-atlas.json', 'avoid': 'slowframes', 'days': 3},
+    # Посты из мыслей Артема (робот «мысль → ролик», 08.11.2026): выходят сразу после его «да» в боте,
+    # бот кладёт пост в queue-mysli и пушит, а пуш в эту папку запускает публикацию (daily.yml, on: push).
+    'mysli': {'dir': 'queue-mysli', 'state': 'state/published-mysli.json', 'days': 0},
 }
 AVOID_DAYS = 0.5
 

@@ -12,12 +12,17 @@ name: threads-daily
 on:
   schedule:
     - cron: '0 11 * * *'
+  # Пост из мысли: бот (робот «мысль → ролик») после «да» Артема кладёт папку в queue-mysli и пушит,
+  # публикация идёт сразу. По расписанию эта очередь не выходит.
+  push:
+    branches: [main]
+    paths: ['queue-mysli/**']
   workflow_dispatch:
     inputs:
       queue:
         description: 'Какая очередь'
         type: choice
-        options: [slowframes, atlas]
+        options: [slowframes, atlas, mysli]
         default: slowframes
       dry:
         description: 'Холостой прогон: показать, что ушло бы, ничего не отправлять'
@@ -63,6 +68,16 @@ jobs:
           [ -n "$POST_ID" ] && args="$args --id $POST_ID"
           [ "$FORCE" = "true" ] && args="$args --force"
           if [ "$EVENT" = "schedule" ] || [ "$DRY" = "false" ]; then
+            python3 publish.py $args
+          else
+            python3 publish.py --dry $args
+          fi
+      - name: Publish mysli
+        if: always() && (github.event_name == 'push' || inputs.queue == 'mysli')
+        run: |
+          args="--queue mysli"
+          [ -n "$POST_ID" ] && args="$args --id $POST_ID"
+          if [ "$EVENT" = "push" ] || [ "$DRY" = "false" ]; then
             python3 publish.py $args
           else
             python3 publish.py --dry $args
