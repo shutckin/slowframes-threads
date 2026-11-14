@@ -114,15 +114,15 @@ def call(path, params, method='GET'):
     if 'error' in j: raise SystemExit(f"threads {path}: {j['error'].get('message')}")
     return j
 
-def wait_ready(cid):
+def wait_ready(cid, video=False):
     # Threads готовит контейнер асинхронно; на неготовый отвечает так, будто
-    # его нет. Карусель из пяти кадров может собираться около минуты.
-    for delay in (3, 5, 10, 20, 30, 30):
+    # его нет. Карусель из пяти кадров может собираться около минуты, видео дольше.
+    for delay in (3, 5, 10, 20, 30, 30) + ((30,) * 10 if video else ()):
         time.sleep(delay)
         j = call(f'/{cid}', {'fields': 'status,error_message'})
         if j.get('status') == 'FINISHED': return
         if j.get('status') == 'ERROR': raise SystemExit(f"контейнер {cid} отклонён: {j.get('error_message')}")
-    raise SystemExit(f'контейнер {cid} не готов после 98 секунд')
+    raise SystemExit(f'контейнер {cid} не готов после {98 + (300 if video else 0)} секунд')
 
 def load(path):
     return json.loads(path.read_text()) if path.exists() else {}
@@ -188,7 +188,18 @@ def check_images(folder, images):
         if f.suffix.lower() not in IMAGE_TYPES: raise SystemExit(f'{name}: Threads принимает только JPEG и PNG')
         if f.stat().st_size > MAX_IMAGE_BYTES: raise SystemExit(f'{name}: {f.stat().st_size // 1024} КБ, лимит Threads 8 МБ')
 
-def media_kind(images):
+VIDEO_TYPES = ('.mp4', '.mov')
+MAX_VIDEO_BYTES = 90 * 1024 * 1024        # Threads берёт до 1 ГБ, но GitHub не хранит файлы больше 100 МБ
+
+def check_video(folder, name):
+    """Видео поста (с 15.11.2026): один файл MP4/MOV в папке поста, Threads забирает его по raw-ссылке."""
+    f = folder/name
+    if '/' in name or not f.is_file(): raise SystemExit(f'нет видео {name} в папке {folder.name}')
+    if f.suffix.lower() not in VIDEO_TYPES: raise SystemExit(f'{name}: видео только MP4 или MOV')
+    if f.stat().st_size > MAX_VIDEO_BYTES: raise SystemExit(f'{name}: {f.stat().st_size // 2**20} МБ, держим до 90 МБ')
+
+def media_kind(images, video=''):
+    if video: return 'VIDEO'
     return 'CAROUSEL' if len(images) > 1 else 'IMAGE' if images else 'TEXT'
 
 def create_container(me, params):
@@ -203,7 +214,7 @@ def create_container(me, params):
 
 def publish_container(me, params):
     cid = create_container(me, params)
-    wait_ready(cid)
+    wait_ready(cid, video=params.get('media_type') == 'VIDEO')
     return call(f'/{me}/threads_publish', {'creation_id': cid}, 'POST')['id']
 
 def main():
@@ -221,11 +232,15 @@ def main():
     check_length(post)
     images = post.get('images') or []
     check_images(folder, images)
-    urls = [f'{RAW}/{QDIR_NAME}/{pid}/{name}' for name in images]
+    video = str(post.get('video') or '')
+    if video:
+        if images: raise SystemExit(f'пост {pid}: видео и картинки вместе публикатор пока не умеет')
+        check_video(folder, video)
+    urls = [f'{RAW}/{QDIR_NAME}/{pid}/{name}' for name in (images or ([video] if video else []))]
     # Подпись: у атласа "text", у slowframes "hook"
     body = post.get('text') or post.get('hook') or ''
     if not body.strip(): raise SystemExit(f'пост {pid}: пустой текст (нужно поле text или hook)')
-    kind = media_kind(images)
+    kind = media_kind(images, video)
     # Метка темы поста (как «Вайб Кодинг» у тем в Threads): необязательное поле topic, 1-50 знаков без точек и &
     topic = str(post.get('topic') or '').strip()
     if topic and (len(topic) > 50 or any(ch in topic for ch in '.&')):
@@ -245,6 +260,8 @@ def main():
             c = call(f'/{me}/threads', {'media_type': 'IMAGE', 'image_url': u, 'is_carousel_item': 'true'}, 'POST')['id']
             wait_ready(c); children.append(c)
         pub = publish_container(me, {'media_type': 'CAROUSEL', 'children': ','.join(children), 'text': body, **extra})
+    elif kind == 'VIDEO':
+        pub = publish_container(me, {'media_type': 'VIDEO', 'video_url': urls[0], 'text': body, **extra})
     elif kind == 'IMAGE':
         pub = publish_container(me, {'media_type': 'IMAGE', 'image_url': urls[0], 'text': body, **extra})
     else:
