@@ -15,6 +15,8 @@ GitHub. Локальная машина для публикации не нуж�
                {"text": "...", "reply": "...", "images": ["card.png"]} — текст
                с картинкой (карточка сравнения с сайта). Одна картинка уходит
                одиночным постом IMAGE, две и больше — каруселью, как slowframes.
+  lichnoe    — queue-lichnoe/<id>/post.json, личные посты Артема с его «Беру» на столе;
+               {"text": "...", "reply": "...", "topic": "Вайбкодинг"}, один в день.
 Подпись поста — "text", а если его нет — "hook" (так устроены посты
 slowframes). Картинки — JPEG или PNG (официально поддерживаемые Threads
 форматы), до 8 МБ каждая, в карусели от 2 до 20; файлы должны лежать в
@@ -73,6 +75,10 @@ QUEUES = {
     # Посты из мыслей Артема (робот «мысль → ролик», 08.11.2026): выходят сразу после его «да» в боте,
     # бот кладёт пост в queue-mysli и пушит, а пуш в эту папку запускает публикацию (daily.yml, on: push).
     'mysli': {'dir': 'queue-mysli', 'state': 'state/published-mysli.json', 'days': 0},
+    # Личные посты Артема (15.11.2026): черновики пишутся на столе 15-Threads в проекте Youtube DJIYVLOM, сюда
+    # попадают только те, на которые Артем нажал «Беру» и «Поставить в очередь». Один пост в день, свой запуск
+    # по расписанию в 06:00 UTC (daily.yml), поэтому с остальными очередями в один час не сталкивается.
+    'lichnoe': {'dir': 'queue-lichnoe', 'state': 'state/published-lichnoe.json', 'days': 1},
 }
 AVOID_DAYS = 0.5
 
@@ -164,8 +170,18 @@ def check_images(folder, images):
 def media_kind(images):
     return 'CAROUSEL' if len(images) > 1 else 'IMAGE' if images else 'TEXT'
 
+def create_container(me, params):
+    """Контейнер поста. Метку темы (topic_tag) Threads может не принять: тогда тот же пост без метки.
+    Повтор безопасен: упал сам запрос создания, значит, ничего не создано и не опубликовано."""
+    try:
+        return call(f'/{me}/threads', params, 'POST')['id']
+    except SystemExit as e:
+        if 'topic_tag' not in params: raise
+        print(f'метку темы «{params["topic_tag"]}» Threads не принял ({e}), публикую без неё')
+        return call(f'/{me}/threads', {k: v for k, v in params.items() if k != 'topic_tag'}, 'POST')['id']
+
 def publish_container(me, params):
-    cid = call(f'/{me}/threads', params, 'POST')['id']
+    cid = create_container(me, params)
     wait_ready(cid)
     return call(f'/{me}/threads_publish', {'creation_id': cid}, 'POST')['id']
 
@@ -189,7 +205,13 @@ def main():
     body = post.get('text') or post.get('hook') or ''
     if not body.strip(): raise SystemExit(f'пост {pid}: пустой текст (нужно поле text или hook)')
     kind = media_kind(images)
-    print(f'{QUEUE} / пост {pid}: {kind}, картинок {len(urls)}\n{body}\n---\n{post.get("reply", "")}')
+    # Метка темы поста (как «Вайб Кодинг» у тем в Threads): необязательное поле topic, 1-50 знаков без точек и &
+    topic = str(post.get('topic') or '').strip()
+    if topic and (len(topic) > 50 or any(ch in topic for ch in '.&')):
+        raise SystemExit(f'пост {pid}: метка темы «{topic}» не подходит Threads (до 50 знаков, без точек и &)')
+    extra = {'topic_tag': topic} if topic else {}
+    print(f'{QUEUE} / пост {pid}: {kind}, картинок {len(urls)}' + (f', тема «{topic}»' if topic else '') +
+          f'\n{body}\n---\n{post.get("reply", "")}')
     if DRY:
         for u in urls: print(' ', u)
         print(f'знаков: текст {len(body)}, ответ {len(post.get("reply") or "")} (лимит {MAX_CHARS})')
@@ -201,11 +223,11 @@ def main():
         for u in urls:
             c = call(f'/{me}/threads', {'media_type': 'IMAGE', 'image_url': u, 'is_carousel_item': 'true'}, 'POST')['id']
             wait_ready(c); children.append(c)
-        pub = publish_container(me, {'media_type': 'CAROUSEL', 'children': ','.join(children), 'text': body})
+        pub = publish_container(me, {'media_type': 'CAROUSEL', 'children': ','.join(children), 'text': body, **extra})
     elif kind == 'IMAGE':
-        pub = publish_container(me, {'media_type': 'IMAGE', 'image_url': urls[0], 'text': body})
+        pub = publish_container(me, {'media_type': 'IMAGE', 'image_url': urls[0], 'text': body, **extra})
     else:
-        pub = publish_container(me, {'media_type': 'TEXT', 'text': body})
+        pub = publish_container(me, {'media_type': 'TEXT', 'text': body, **extra})
     link = call(f'/{pub}', {'fields': 'permalink'}).get('permalink', '')
     # Отметку пишем до ответа: если ответ упадёт, пост не выйдет второй раз
     done[pid] = {'post': pub, 'permalink': link, 'at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}

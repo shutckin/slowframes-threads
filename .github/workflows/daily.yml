@@ -12,6 +12,8 @@ name: threads-daily
 on:
   schedule:
     - cron: '0 11 * * *'
+    # Личные посты (очередь lichnoe, с 15.11.2026): 06:00 UTC = 09:00 по Москве, 13:00 во Вьетнаме
+    - cron: '0 6 * * *'
   # Пост из мысли: бот (робот «мысль → ролик») после «да» Артема кладёт папку в queue-mysli и пушит,
   # публикация идёт сразу. По расписанию эта очередь не выходит.
   push:
@@ -22,7 +24,7 @@ on:
       queue:
         description: 'Какая очередь'
         type: choice
-        options: [slowframes, atlas, mysli]
+        options: [slowframes, atlas, mysli, lichnoe]
         default: slowframes
       dry:
         description: 'Холостой прогон: показать, что ушло бы, ничего не отправлять'
@@ -51,7 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Publish slowframes
-        if: github.event_name == 'schedule' || inputs.queue == 'slowframes'
+        if: (github.event_name == 'schedule' && github.event.schedule == '0 11 * * *') || inputs.queue == 'slowframes'
         run: |
           args="--queue slowframes"
           [ -n "$POST_ID" ] && args="$args --id $POST_ID"
@@ -62,7 +64,7 @@ jobs:
             python3 publish.py --dry $args
           fi
       - name: Publish atlas
-        if: always() && (github.event_name == 'schedule' || inputs.queue == 'atlas')
+        if: always() && ((github.event_name == 'schedule' && github.event.schedule == '0 11 * * *') || inputs.queue == 'atlas')
         run: |
           args="--queue atlas"
           [ -n "$POST_ID" ] && args="$args --id $POST_ID"
@@ -78,6 +80,17 @@ jobs:
           args="--queue mysli"
           [ -n "$POST_ID" ] && args="$args --id $POST_ID"
           if [ "$EVENT" = "push" ] || [ "$DRY" = "false" ]; then
+            python3 publish.py $args
+          else
+            python3 publish.py --dry $args
+          fi
+      - name: Publish lichnoe
+        if: always() && ((github.event_name == 'schedule' && github.event.schedule == '0 6 * * *') || inputs.queue == 'lichnoe')
+        run: |
+          args="--queue lichnoe"
+          [ -n "$POST_ID" ] && args="$args --id $POST_ID"
+          [ "$FORCE" = "true" ] && args="$args --force"
+          if [ "$EVENT" = "schedule" ] || [ "$DRY" = "false" ]; then
             python3 publish.py $args
           else
             python3 publish.py --dry $args
