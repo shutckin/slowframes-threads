@@ -81,6 +81,12 @@ QUEUES = {
     'lichnoe': {'dir': 'queue-lichnoe', 'state': 'state/published-lichnoe.json', 'days': 1},
 }
 AVOID_DAYS = 0.5
+# Второй слот (решение Артема 15.11.2026: «оставить, но адаптировать под новую выкладку»): главный пост дня личный
+# (очередь lichnoe, 06:00 UTC), а slowframes, атлас и посты EastRide делят второй слот, не больше одного в сутки.
+# EastRide публикует сам из своего репозитория, поэтому смотрим на сам аккаунт: если за SECOND_SLOT_HOURS часов уже
+# вышел пост не из личной очереди, ждём завтра. Ответы в ветках в /me/threads не попадают.
+SECOND_SLOT = {'slowframes', 'atlas'}
+SECOND_SLOT_HOURS = 20
 
 def arg(name, default=None):
     return sys.argv[sys.argv.index(name) + 1] if name in sys.argv else default
@@ -145,7 +151,22 @@ def due(done):
         other = days_since_last(load(HERE/QUEUES[CFG['avoid']]['state']))
         if other is not None and other < AVOID_DAYS:
             return False, f'сегодня уже вышел {CFG["avoid"]} ({other * 24:.0f} ч назад), ждём завтра'
+    if QUEUE in SECOND_SLOT and not DRY:
+        busy = second_slot_taken()
+        if busy: return False, busy
     return True, ''
+
+def second_slot_taken():
+    """Вышел ли за последние часы пост не из личной очереди (EastRide, атлас, slowframes, мысли)."""
+    personal = {v.get('permalink') for v in load(HERE/QUEUES['lichnoe']['state']).values()}
+    recent = call('/me/threads', {'fields': 'timestamp,permalink,media_type', 'limit': 10}).get('data', [])
+    for p in recent:
+        if p.get('media_type') == 'REPOST_FACADE' or p.get('permalink') in personal: continue
+        at = calendar.timegm(time.strptime(p['timestamp'][:19], '%Y-%m-%dT%H:%M:%S'))
+        hours = (time.time() - at) / 3600
+        if hours < SECOND_SLOT_HOURS:
+            return f'второй слот занят: {hours:.0f} ч назад вышел другой пост ({p.get("permalink", "")}), ждём завтра'
+    return ''
 
 def check_length(post):
     for field in ('text', 'hook', 'reply'):
