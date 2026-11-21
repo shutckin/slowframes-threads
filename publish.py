@@ -17,6 +17,9 @@ GitHub. Локальная машина для публикации не нуж�
                одиночным постом IMAGE, две и больше — каруселью, как slowframes.
   lichnoe    — queue-lichnoe/<id>/post.json, личные посты Артема с его «Беру» на столе;
                {"text": "...", "reply": "...", "topic": "Вайбкодинг"}, один в день.
+Ветка-история (21.11.2026): необязательное поле "thread": ["...", "..."] — сообщения, которые выходят
+цепочкой под постом, каждое ответом на предыдущее (1-10 штук, каждое до 500 знаков). "reply", если есть,
+встаёт последним, ответом на конец цепочки.
 Подпись поста — "text", а если его нет — "hook" (так устроены посты
 slowframes). Картинки — JPEG или PNG (официально поддерживаемые Threads
 форматы), до 8 МБ каждая, в карусели от 2 до 20; файлы должны лежать в
@@ -168,10 +171,19 @@ def second_slot_taken():
             return f'второй слот занят: {hours:.0f} ч назад вышел другой пост ({p.get("permalink", "")}), ждём завтра'
     return ''
 
+MAX_THREAD = 10                          # сообщений в ветке-истории под постом
+
 def check_length(post):
     for field in ('text', 'hook', 'reply'):
         n = len(post.get(field) or '')
         if n > MAX_CHARS: raise SystemExit(f'поле {field}: {n} знаков, лимит Threads {MAX_CHARS}')
+    thread = post.get('thread')
+    if thread is None: return
+    if not isinstance(thread, list) or not thread or not all(isinstance(t, str) and t.strip() for t in thread):
+        raise SystemExit('поле thread: нужен список непустых сообщений')
+    if len(thread) > MAX_THREAD: raise SystemExit(f'в ветке {len(thread)} сообщений, держим до {MAX_THREAD}')
+    for k, t in enumerate(thread, 1):
+        if len(t) > MAX_CHARS: raise SystemExit(f'сообщение ветки {k}: {len(t)} знаков, лимит Threads {MAX_CHARS}')
 
 IMAGE_TYPES = ('.jpg', '.jpeg', '.png')  # официально поддерживаемые Threads форматы
 MAX_IMAGE_BYTES = 8 * 1024 * 1024        # лимит Threads на картинку
@@ -246,11 +258,15 @@ def main():
     if topic and (len(topic) > 50 or any(ch in topic for ch in '.&')):
         raise SystemExit(f'пост {pid}: метка темы «{topic}» не подходит Threads (до 50 знаков, без точек и &)')
     extra = {'topic_tag': topic} if topic else {}
+    thread = post.get('thread') or []
     print(f'{QUEUE} / пост {pid}: {kind}, картинок {len(urls)}' + (f', тема «{topic}»' if topic else '') +
-          f'\n{body}\n---\n{post.get("reply", "")}')
+          (f', в ветке {len(thread)} сообщ.' if thread else '') +
+          ''.join(f'\n{body}' if i == 0 else f'\n--- сообщение {i + 1}\n{t}' for i, t in enumerate([body, *thread])) +
+          f'\n---\n{post.get("reply", "")}')
     if DRY:
         for u in urls: print(' ', u)
-        print(f'знаков: текст {len(body)}, ответ {len(post.get("reply") or "")} (лимит {MAX_CHARS})')
+        print(f'знаков: текст {len(body)}, ответ {len(post.get("reply") or "")}' +
+              (f', ветка {[len(t) for t in thread]}' if thread else '') + f' (лимит {MAX_CHARS})')
         return
     if not TOKEN: raise SystemExit('THREADS_RU_ACCESS_TOKEN не задан')
     me = call('/me', {'fields': 'id'})['id']
@@ -271,10 +287,27 @@ def main():
     done[pid] = {'post': pub, 'permalink': link, 'at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
     STATE.parent.mkdir(exist_ok=True); STATE.write_text(json.dumps(done, ensure_ascii=False, indent=1))
     print('опубликовано:', link)
+    last = publish_thread(me, pid, pub, thread, done)
     if post.get('reply'):
-        rid = publish_container(me, {'media_type': 'TEXT', 'text': post['reply'], 'reply_to_id': pub})
+        rid = publish_container(me, {'media_type': 'TEXT', 'text': post['reply'], 'reply_to_id': last})
         done[pid]['reply'] = rid; STATE.write_text(json.dumps(done, ensure_ascii=False, indent=1))
         print('ответ в ветке:', rid)
+
+def publish_thread(me, pid, pub, thread, done):
+    """Ветка-история: каждое сообщение ответом на предыдущее. Id каждого вышедшего пишется в state сразу:
+    если цепочка оборвётся, видно, с какого сообщения доопубликовать руками (повтор поста запрещён)."""
+    last = pub
+    for k, text in enumerate(thread, 1):
+        try:
+            last = publish_container(me, {'media_type': 'TEXT', 'text': text, 'reply_to_id': last})
+        except SystemExit as e:
+            done[pid]['thread_stopped_at'] = k
+            STATE.write_text(json.dumps(done, ensure_ascii=False, indent=1))
+            raise SystemExit(f'ветка {pid} оборвалась на ответе {k} из {len(thread)} (вышли пост и {k - 1} отв.): {e}')
+        done[pid].setdefault('thread', []).append(last)
+        STATE.write_text(json.dumps(done, ensure_ascii=False, indent=1))
+        print(f'ветка, ответ {k} из {len(thread)}:', last)
+    return last
 
 if __name__ == '__main__':
     main()
